@@ -21,7 +21,21 @@
       </div>
 
       <div class="form-group">
-  <div class="text-center">
+        <%= f.label :password, 'Password' %>
+        <%= f.password_field :password, class: 'form-control' %>
+      </div>
+
+      <div class="form-group">
+        <%= f.label :password_confirmation, 'Confirmation' %>
+        <%= f.password_field :password_confirmation, class: 'form-control' %>
+      </div>
+
+      <%= f.submit 'Sign up', class: 'btn btn-primary btn-block' %>
+    <% end %>
+  </div>
+</div>
+
+<div class="text-center">
   <h1>Log in</h1>
 </div>
 
@@ -45,21 +59,5 @@
 
     <p>New user? <%= link_to 'Sign up now!', signup_path %></p>
   </div>
-</div>      <%= f.label :password, 'Password' %>
-        <%= f.password_field :password, class: 'form-control' %>
-      </div>
-
-      <div class="form-group">
-        <%= f.label :password_confirmation, 'Confirmation' %>
-        <%= f.password_field :password_confirmation, class: 'form-control' %>
-      </div>
-
-      <%= f.submit 'Sign up', class: 'btn btn-primary btn-block' %>
-    <% end %>
-  </div>
 </div>
 
- <%= form_for(@user) do |f| %>
-      <%= render 'layouts/error_messages', model: f.object %>
-      
-  
