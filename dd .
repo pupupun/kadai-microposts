@@ -1,0 +1,115 @@
+[1mdiff --git a/app/controllers/application_controller.rb b/app/controllers/application_controller.rb[m
+[1mindex bdd8057..7b40a10 100644[m
+[1m--- a/app/controllers/application_controller.rb[m
+[1m+++ b/app/controllers/application_controller.rb[m
+[36m@@ -13,5 +13,7 @@[m [mclass ApplicationController < ActionController::Base[m
+   [m
+   def counts(user)[m
+     @count_microposts = user.microposts.count[m
+[32m+[m[32m    @count_followings = user.followings.count[m
+[32m+[m[32m    @count_followers = user.followers.count[m
+   end[m
+ end[m
+[1mdiff --git a/app/controllers/users_controller.rb b/app/controllers/users_controller.rb[m
+[1mindex 5b49468..c7cb218 100644[m
+[1m--- a/app/controllers/users_controller.rb[m
+[1m+++ b/app/controllers/users_controller.rb[m
+[36m@@ -1,5 +1,5 @@[m
+ class UsersController < ApplicationController[m
+[31m-  before_action :require_user_logged_in, only: [:index, :show][m
+[32m+[m[32m  before_action :require_user_logged_in, only: [:index, :show, :followings, :followers][m
+   def index[m
+     @users=User.all.page(params[:page])[m
+   end[m
+[36m@@ -25,6 +25,18 @@[m [mclass UsersController < ApplicationController[m
+       render :new[m
+     end[m
+   end[m
+[32m+[m[41m  [m
+[32m+[m[32m  def followings[m
+[32m+[m[32m    @user = User.find(params[:id])[m
+[32m+[m[32m    @followings = @user.followings.page(params[:page])[m
+[32m+[m[32m    counts(@user)[m
+[32m+[m[32m  end[m
+[32m+[m[41m  [m
+[32m+[m[32m  def followers[m
+[32m+[m[32m    @user = User.find(params[:id])[m
+[32m+[m[32m    @followers = @user.followers.page(params[:page])[m
+[32m+[m[32m    counts(@user)[m
+[32m+[m[32m  end[m
+ [m
+   private[m
+ [m
+[1mdiff --git a/app/models/user.rb b/app/models/user.rb[m
+[1mindex d30434a..eb21df6 100644[m
+[1m--- a/app/models/user.rb[m
+[1m+++ b/app/models/user.rb[m
+[36m@@ -7,4 +7,24 @@[m [mclass User < ApplicationRecord[m
+   has_secure_password[m
+   [m
+   has_many :microposts[m
+[32m+[m[32m  has_many :relationships[m
+[32m+[m[32m  has_many :followings, through: :relationships, source: :follow[m
+[32m+[m[32m  has_many :reverses_of_relationship, class_name: 'Relationship', foreign_key: 'follow_id'[m
+[32m+[m[32m  has_many :followers, through: :reverses_of_relationship, source: :user[m
+[32m+[m[41m  [m
+[32m+[m[32m  def follow(other_user)[m
+[32m+[m[32m    unless self == other_user[m
+[32m+[m[32m      self.relationships.find_or_create_by(follow_id: other_user.id)[m
+[32m+[m[32m    end[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  def unfollow(other_user)[m
+[32m+[m[32m    relationship = self.relationships.find_by(follow_id: other_user.id)[m
+[32m+[m[32m    relationship.destroy if relationship[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  def following?(other_user)[m
+[32m+[m[32m    self.followings.include?(other_user)[m
+[32m+[m[32m  end[m
+[32m+[m[32mend[m
+ end[m
+[1mdiff --git a/app/views/users/show.html.erb b/app/views/users/show.html.erb[m
+[1mindex 6312c7e..6f8eb11 100644[m
+[1m--- a/app/views/users/show.html.erb[m
+[1m+++ b/app/views/users/show.html.erb[m
+[36m@@ -7,13 +7,14 @@[m
+       <div class="panel-body">[m
+         <img class="media-object img-rounded img-responsive" src="<%= gravatar_url(@user, { size: 500 }) %>" alt="">[m
+       </div>[m
+[32m+[m[32m      <%= render 'relationships/follow_button', user: @user %>[m
+     </div>[m
+   </aside>[m
+   <div class="col-xs-8">[m
+     <ul class="nav nav-tabs nav-justified">[m
+       <li class="<%= 'active' if current_page?(user_path(@user)) %>"><%= link_to user_path(@user) do %>Microposts <span class="badge"><%= @count_microposts %></span><% end %></li>[m
+[31m-      <li><a href="#">Followings</a></li>[m
+[31m-      <li><a href="#">Followers</a></li>[m
+[32m+[m[32m      <li class="<%= 'active' if current_page?(followings_user_path(@user)) %>"><%= link_to followings_user_path(@user) do %>Followings <span class="badge"><%= @count_followings %></span><% end %></li>[m
+[32m+[m[32m      <li class="<%= 'active' if current_page?(followers_user_path(@user)) %>"><%= link_to followers_user_path(@user) do %>Followers <span class="badge"><%= @count_followers %></span><% end %></li>[m
+     </ul>[m
+     <%= render 'microposts/microposts', microposts: @microposts %>[m
+   </div>[m
+[1mdiff --git a/config/routes.rb b/config/routes.rb[m
+[1mindex b322bb8..91a711f 100644[m
+[1m--- a/config/routes.rb[m
+[1m+++ b/config/routes.rb[m
+[36m@@ -7,7 +7,16 @@[m [mRails.application.routes.draw do[m
+   delete 'logout', to: 'sessions#destroy'[m
+   [m
+   get 'signup', to: 'users#new'[m
+[31m-  resources :users, only: [:index, :show, :new, :create][m
+[32m+[m[32m  resources :users, only: [:index, :show, :new, :create] do[m
+[32m+[m[32m    member do[m
+[32m+[m[32m      get :followings[m
+[32m+[m[32m      get :followers[m
+[32m+[m[32m    end[m
+[32m+[m[32m    collection do[m
+[32m+[m[32m      get :search[m
+[32m+[m[32m    end[m
+[32m+[m[32m  end[m
+   [m
+[31m-  resources :microposts, only: [:create, :destroy][m
+[32m+[m[32m    resources :microposts, only: [:create, :destroy][m
+[32m+[m[32m    resources :relationships, only: [:create, :destroy][m
+ end[m
